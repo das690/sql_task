@@ -1,0 +1,154 @@
+-- 1. DATABASE & TABLE CREATION
+
+-- Create the database and switch to it
+CREATE DATABASE IF NOT EXISTS ecommerce;
+USE ecommerce;
+
+-- Create the customers table
+CREATE TABLE customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    address TEXT
+);
+
+-- Create the products table
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    description TEXT
+);
+
+-- Create the orders table
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+-- 2. INSERTING SAMPLE DATA
+
+-- Insert sample customers
+INSERT INTO customers (name, email, address) VALUES
+('Alice Smith', 'alice@example.com', '123 Apple St, NY'),
+('Bob Johnson', 'bob@example.com', '456 Banana Ave, CA'),
+('Charlie Brown', 'charlie@example.com', '789 Cherry Blvd, TX');
+
+-- Insert sample products
+INSERT INTO products (name, price, description) VALUES
+('Product A', 25.00, 'A highly useful widget.'),
+('Product B', 120.00, 'A premium gadget.'),
+('Product C', 35.00, 'A standard tool.'),
+('Product D', 200.00, 'Luxury item.');
+
+-- Insert sample orders
+INSERT INTO orders (customer_id, order_date, total_amount) VALUES
+(1, CURRENT_DATE - INTERVAL 10 DAY, 50.00),
+(2, CURRENT_DATE - INTERVAL 45 DAY, 120.00),
+(1, CURRENT_DATE - INTERVAL 5 DAY, 160.00),
+(3, CURRENT_DATE - INTERVAL 20 DAY, 35.00);
+
+-- 3. QUERIES TO WRITE
+
+-- Query 1: Retrieve all customers who have placed an order in the last 30 days.
+-- Uses JOIN to connect customers with orders and filters by dates within the last 30 days.
+SELECT DISTINCT c.* 
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+WHERE o.order_date >= CURRENT_DATE - INTERVAL 30 DAY;
+
+-- Query 2: Get the total amount of all orders placed by each customer.
+-- Uses GROUP BY and SUM() to aggregate the total_amount per customer.
+SELECT c.name, SUM(o.total_amount) AS total_spent
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+GROUP BY c.id, c.name;
+
+-- Query 3: Update the price of Product C to 45.00.
+-- Modifies the price column where the product name matches.
+UPDATE products 
+SET price = 45.00 
+WHERE name = 'Product C';
+
+-- Query 4: Add a new column 'discount' to the products table.
+-- Alters the table schema to include a discount column with a default value of 0.
+ALTER TABLE products 
+ADD COLUMN discount DECIMAL(5, 2) DEFAULT 0.00;
+
+-- Query 5: Retrieve the top 3 products with the highest price.
+-- Sorts the products by price in descending order and limits the result to 3.
+SELECT * 
+FROM products 
+ORDER BY price DESC 
+LIMIT 3;
+
+-- Query 6: Get the names of customers who have ordered Product A.
+-- This query relies on the 'order_items' table structure which is created in Query 9.
+SELECT DISTINCT c.name 
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+WHERE p.name = 'Product A';
+
+-- Query 7: Join the orders and customers tables to retrieve the customer's name and order date for each order.
+-- Performs an INNER JOIN to fetch related data from both tables.
+SELECT c.name, o.order_date 
+FROM customers c
+JOIN orders o ON c.id = o.customer_id;
+
+-- Query 8: Retrieve the orders with a total amount greater than 150.00.
+-- Simply filters the orders table based on the total_amount condition.
+SELECT * 
+FROM orders 
+WHERE total_amount > 150.00;
+
+-- Query 9: Normalize the database by creating a separate table for order items.
+-- table holding the Many-to-One references to both 'orders' and 'products'.
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    price_at_purchase DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
+);
+
+-- Populating the new normalized table with sample data so Query 6 will work
+INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES
+(1, 1, 2, 25.00), -- Order 1 contains 2x Product A (Total: 50.00)
+(2, 2, 1, 120.00), -- Order 2 contains 1x Product B (Total: 120.00)
+(3, 4, 1, 160.00), -- Order 3 contains 1x Product D (Assuming old price was 160)
+(4, 3, 1, 35.00);  -- Order 4 contains 1x Product C (Total: 35.00)
+
+-- Query 10: Retrieve the average total of all orders.
+-- Uses the AVG() aggregate function to calculate the mean of the total_amount column.
+SELECT AVG(total_amount) AS average_order_total 
+FROM orders;
+
+-- RESUMING QUERIES
+-- Query 11: Get the names of customers who have ordered Product A.
+SELECT DISTINCT c.name 
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+WHERE p.name = 'Product A';
+
+-- Query 7: Join the orders and customers tables to retrieve the customer's name and order date for each order.
+SELECT c.name, o.order_date 
+FROM customers c
+JOIN orders o ON c.id = o.customer_id;
+
+-- Query 8: Retrieve the orders with a total amount greater than 150.00.
+SELECT * 
+FROM orders 
+WHERE total_amount > 150.00;
+
+-- Query 10: Retrieve the average total of all orders.
+SELECT AVG(total_amount) AS average_order_total 
+FROM orders;
